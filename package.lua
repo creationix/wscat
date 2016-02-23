@@ -6,6 +6,7 @@ return {
     version = "2.6.1",
     flavor = "tiny",
   },
+  homepage = "https://github.com/creationix/wscat",
   dependencies = {
     "creationix/websocket-client",
     "luvit/readline",
