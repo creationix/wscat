@@ -1,5 +1,7 @@
 
-dofile("luvit-loader.lua")
+local bundle = require('luvi').bundle
+loadstring(bundle.readfile("luvit-loader.lua"), "bundle:luvit-loader.lua")()
+
 local connect = require('websocket-client')
 local readLine = require('readline').readLine
 local split = require('coro-split')
