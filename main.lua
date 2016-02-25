@@ -1,42 +1,99 @@
-
 local bundle = require('luvi').bundle
 loadstring(bundle.readfile("luvit-loader.lua"), "bundle:luvit-loader.lua")()
 
-local connect = require('websocket-client')
-local readLine = require('readline').readLine
+local uv = require('uv')
+local parseUrl = require('coro-websocket').parseUrl
+local connect = require('coro-websocket').connect
+local readline = require('readline')
+local History = readline.History
+local Editor = readline.Editor
 local split = require('coro-split')
+local pp = require('pretty-print')
+local p = pp.p
 
+local options, url
+do
+  local args = {...}
+  url = args[1]
+  if not url then
+    print("usage: wscat url [subprotocol]")
+    print("example: wscat wss://lit.luvit.io/ lit")
+    return 1
+  end
+  local err
+  options, err = parseUrl(url)
+  if err then
+    print(err)
+    return -1
+  end
+  options.subprotocol = args[2]
+end
 
-local url = assert(args[1], "The first argument should be the wss:// url")
-local subprotocol = args[2]
+local getLine
+do
+  local thread, editor
+  local prompt = ""
+  local history = History.new()
+  editor = Editor.new({
+    stdin = pp.stdin,
+    stdout = pp.stdout,
+    history = history
+  })
 
-local function getLine()
-  local thread = coroutine.running()
-  readLine("", function (err, line)
-    assert(coroutine.resume(thread, line, err))
-  end)
-  return coroutine.yield()
+  local function onLine(err, line, reason)
+    local t = thread
+    thread = nil
+    return assert(coroutine.resume(t, line, err or reason))
+  end
+
+  function getLine()
+    thread = coroutine.running()
+    editor:readLine(prompt, onLine)
+    return coroutine.yield()
+  end
 end
 
 
 coroutine.wrap(function ()
-  local read, write = assert(connect(url, subprotocol, {}))
-  split(function ()
+  local connectMessage = "Conecting to " .. url
+  if options.subprotocol then
+    connectMessage = connectMessage .. " using " .. options.subprotocol
+  end
+  print(connectMessage)
+  local res, read, write = assert(connect(options))
+  local peer = res.socket:getpeername()
+  res.socket:keepalive(true, 1000)
+
+  print(string.format("Connected to %s:%s", peer.ip, peer.port))
+
+  local done = false
+  local function getInput()
     for line in getLine do
-      write {
+      assert(write {
         opcode = 1,
         payload = line
-      }
+      })
     end
-  end, function ()
+    write()
+    done = true
+  end
+
+  local function logMessages()
     for message in read do
-      if message.opcode == 1 then
+      if message.opcode == 1 then -- text
         print(message.payload)
+      elseif message.opcode == 2 then -- binary
+        p(message.payload)
       end
     end
-  end)
-  write()
+    if not done then
+      print("Server disconnected")
+      os.exit(-1)
+    end
+  end
+
+  split(getInput, logMessages)
 
 end)()
 
-require('uv').run()
+uv.run()
