@@ -9,13 +9,15 @@ local History = readline.History
 local Editor = readline.Editor
 local split = require('coro-split')
 local pp = require('pretty-print')
-local p = pp.p
+local p = pp.prettyPrint
+local meta = require('./package')
 
 local options, url
 do
   local args = {...}
   url = args[1]
   if not url then
+    print(string.format("%s v%s", meta.name, meta.version))
     print("usage: wscat url [subprotocol]")
     print("example: wscat wss://lit.luvit.io/ lit")
     return 1
@@ -65,6 +67,7 @@ coroutine.wrap(function ()
   res.socket:keepalive(true, 1000)
 
   print(string.format("Connected to %s:%s", peer.ip, peer.port))
+  print("(Use Control+D to send EOF)")
 
   local done = false
   local function getInput()
