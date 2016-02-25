@@ -28,6 +28,9 @@ do
     print(err)
     return -1
   end
+  if options.pathname == "" then
+    options.pathname = "/"
+  end
   options.subprotocol = args[2]
 end
 
