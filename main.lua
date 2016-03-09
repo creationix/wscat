@@ -1,7 +1,10 @@
 local bundle = require('luvi').bundle
 loadstring(bundle.readfile("luvit-loader.lua"), "bundle:luvit-loader.lua")()
 
+local getenv = require('os').getenv
+local isWindows = require('ffi').os == "Windows"
 local uv = require('uv')
+local fs = require('coro-fs')
 local parseUrl = require('coro-websocket').parseUrl
 local connect = require('coro-websocket').connect
 local readline = require('readline')
@@ -34,11 +37,11 @@ do
   options.subprotocol = args[2]
 end
 
-local getLine
+local getLine, history
 do
   local thread, editor
   local prompt = ""
-  local history = History.new()
+  history = History.new()
   editor = Editor.new({
     stdin = pp.stdin,
     stdout = pp.stdout,
@@ -60,6 +63,15 @@ end
 
 
 coroutine.wrap(function ()
+
+  local historyFile
+  if isWindows then
+    historyFile = getenv("APPDATA") .. "\\wscat_history"
+  else
+    historyFile = getenv("HOME") .. "/.wscat_history"
+  end
+  history:load(fs.readFile(historyFile) or "")
+
   local connectMessage = "Conecting to " .. url
   if options.subprotocol then
     connectMessage = connectMessage .. " using " .. options.subprotocol
@@ -79,6 +91,7 @@ coroutine.wrap(function ()
         opcode = 1,
         payload = line
       })
+      fs.writeFile(historyFile, history:dump())
     end
     write()
     done = true

@@ -1,6 +1,6 @@
 return {
   name = "creationix/wscat",
-  version = "0.2.2",
+  version = "0.2.3",
   description = "A netcat like client for websockets",
   luvi = {
     version = "2.6.1",
@@ -13,6 +13,7 @@ return {
     "luvit/secure-socket@1.0.0",
     "creationix/coro-split@2.0.0",
     "creationix/coro-websocket@1.0.0",
+    "creationix/coro-fs@2.2.1",
   },
   files = {
     "*.lua",
